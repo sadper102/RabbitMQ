@@ -4,24 +4,22 @@ using RabbitMQ.Client.Events;
 
 namespace RabbitMqWebApi;
 
-public class RabbitMqConsumer
+public class RabbitMqConsumer : BackgroundService
 {
     private const string QueueName = "test_queue";
+    private readonly IConnection connection;
+    private readonly IModel channel;
     public static string? LatestMessage { get; private set; }
 
-    static RabbitMqConsumer()
+    public RabbitMqConsumer(IConnection connection)
     {
-        var consumerThread = new Thread(ConsumeMessages) { IsBackground = true };
-        consumerThread.Start();
+        this.connection = connection;
+        channel = this.connection.CreateModel();
+        InitializeRabbitMq();
     }
 
-    private static void ConsumeMessages()
+    private void InitializeRabbitMq()
     {
-        var factory = new ConnectionFactory() { HostName = "rabbitmq", UserName = "user", Password = "password" };
-        Console.WriteLine(factory.HostName);
-        using var connection = factory.CreateConnection();
-        using var channel = connection.CreateModel();
-
         channel.QueueDeclare(queue: QueueName,
             durable: false,
             exclusive: false,
@@ -29,7 +27,7 @@ public class RabbitMqConsumer
             arguments: null);
 
         var consumer = new EventingBasicConsumer(channel);
-        consumer.Received += (model, ea) =>
+        consumer.Received += (_, ea) =>
         {
             var body = ea.Body.ToArray();
             var message = Encoding.UTF8.GetString(body);
@@ -39,7 +37,17 @@ public class RabbitMqConsumer
         channel.BasicConsume(queue: QueueName,
             autoAck: true,
             consumer: consumer);
+    }
 
-        while (true) { Thread.Sleep(100); }
+    protected override Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        return Task.CompletedTask;
+    }
+
+    public override void Dispose()
+    {
+        channel?.Close();
+        connection?.Close();
+        base.Dispose();
     }
 }

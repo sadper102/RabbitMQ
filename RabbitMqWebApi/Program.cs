@@ -1,9 +1,17 @@
+using RabbitMQ.Client;
 using RabbitMqWebApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
+builder.Services.AddSingleton(sp =>
+{
+    var factory = new ConnectionFactory() { HostName = "localhost", UserName = "user", Password = "password" };
+    return factory.CreateConnection();
+});
+builder.Services.AddSingleton<RabbitMqConsumer>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<RabbitMqConsumer>());
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -17,6 +25,5 @@ app.UseSwaggerUI();
 app.UseHttpsRedirection();
 
 app.UseAuthorization();
-var rabbitMqConsumer = new RabbitMqConsumer();
 app.MapControllers();
 app.Run();
