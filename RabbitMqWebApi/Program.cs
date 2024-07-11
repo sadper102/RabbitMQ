@@ -1,13 +1,16 @@
+using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 using RabbitMqWebApi;
+using RabbitMqWebApi.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.Configure<RabbitMqConfig>(builder.Configuration.GetSection("RabbitMqConfig"));
 // Add services to the container.
-
 builder.Services.AddSingleton(sp =>
 {
-    var factory = new ConnectionFactory() { HostName = "localhost", UserName = "user", Password = "password" };
+    var rabbitMqConfig = sp.GetRequiredService<IOptions<RabbitMqConfig>>().Value;
+    var factory = new ConnectionFactory() { HostName = rabbitMqConfig.HostName, UserName = rabbitMqConfig.UserName, Password = rabbitMqConfig.Password };
     return factory.CreateConnection();
 });
 builder.Services.AddSingleton<RabbitMqConsumer>();
